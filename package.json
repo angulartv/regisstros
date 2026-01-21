@@ -1,0 +1,25 @@
+{
+  "name": "registros-time-control",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "prisma": "prisma",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.4.0",
+    "iron-session": "^6.3.1",
+    "next": "13.4.4",
+    "papaparse": "5.4.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "eslint": "9.39.2",
+    "eslint-config-next": "16.1.4",
+    "prisma": "^5.4.0"
+  }
+}
