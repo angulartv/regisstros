@@ -14,6 +14,7 @@ function formatDateISO(d) {
 
 export default function Home({ user }) {
   const [entries, setEntries] = useState([])
+  const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({
     date: formatDateISO(new Date()),
     hours: 2,
@@ -56,10 +57,15 @@ export default function Home({ user }) {
   function addEntry(e) {
     if (e) e.preventDefault()
     const hours = Number(form.hours) || 0
-    if (!form.date || hours <= 0) return
+    // Validation: hours required for some types, others can be 0
+    if (!form.date) return
+    if (['extra', 'use', 'familiar'].includes(form.type) && hours <= 0) return
 
-    fetch('/api/entries', {
-      method: 'POST',
+    const method = editingId ? 'PUT' : 'POST'
+    const url = editingId ? `/api/entries/${editingId}` : '/api/entries'
+
+    fetch(url, {
+      method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         date: form.date,
@@ -67,15 +73,49 @@ export default function Home({ user }) {
         type: form.type,
         note: form.note,
         requiresMemo: form.requiresMemo,
-        memoDone: false
+        memoDone: editingId ? entries.find(e => e.id === editingId)?.memoDone : false
       })
     })
       .then((r) => r.json())
-      .then((created) => {
-        setEntries((cur) => [created, ...cur])
-        setForm({ ...form, hours: 2, note: '', requiresMemo: false })
+      .then((saved) => {
+        if (editingId) {
+          setEntries((cur) => cur.map(e => e.id === editingId ? saved : e))
+          setEditingId(null)
+        } else {
+          setEntries((cur) => [saved, ...cur])
+        }
+        setForm({
+          date: formatDateISO(new Date()),
+          hours: 2,
+          type: 'extra',
+          note: '',
+          requiresMemo: false
+        })
       })
-      .catch((err) => alert('Error al crear: ' + String(err)))
+      .catch((err) => alert('Error al guardar: ' + String(err)))
+  }
+
+  function startEdit(entry) {
+    setEditingId(entry.id)
+    setForm({
+      date: entry.date,
+      hours: entry.hours,
+      type: entry.type,
+      note: entry.note || '',
+      requiresMemo: entry.requiresMemo
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setForm({
+      date: formatDateISO(new Date()),
+      hours: 2,
+      type: 'extra',
+      note: '',
+      requiresMemo: false
+    })
   }
 
   async function removeEntry(id) {
@@ -242,7 +282,14 @@ export default function Home({ user }) {
           </div>
 
           <form onSubmit={addEntry} className="card" style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Registrar Nuevo Evento</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>{editingId ? 'Editar Evento' : 'Registrar Nuevo Evento'}</h3>
+              {editingId && (
+                <button type="button" onClick={cancelEdit} style={{ background: 'none', border: '1px solid var(--text-secondary)', borderRadius: '4px', padding: '0.2rem 0.6rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+                  Cancelar Edición
+                </button>
+              )}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', alignItems: 'end' }}>
               <label>
                 Fecha
@@ -254,24 +301,28 @@ export default function Home({ user }) {
                 />
               </label>
               <label>
-                Horas
-                <input
-                  type="number"
-                  min="0"
-                  step="0.25"
-                  value={form.hours}
-                  onChange={(e) => setForm({ ...form, hours: e.target.value })}
-                  required
-                />
-              </label>
-              <label>
                 Tipo
                 <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                   <option value="extra">Hora extra (+)</option>
                   <option value="use">Usar horas (-)</option>
                   <option value="familiar">Día familiar</option>
+                  <option value="memo">Memo Informativo</option>
+                  <option value="change">Cambio de Turno</option>
                 </select>
               </label>
+              {['extra', 'use', 'familiar'].includes(form.type) && (
+                <label>
+                  Horas
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.25"
+                    value={form.hours}
+                    onChange={(e) => setForm({ ...form, hours: e.target.value })}
+                    required
+                  />
+                </label>
+              )}
               <label style={{ gridColumn: 'span 2' }}>
                 Nota
                 <input
@@ -290,7 +341,9 @@ export default function Home({ user }) {
                 />
                 Requiere Memo
               </label>
-              <button type="submit" className="btn-primary">Agregar Registro</button>
+              <button type="submit" className="btn-primary" style={{ background: editingId ? 'var(--primary)' : undefined }}>
+                {editingId ? 'Actualizar' : 'Agregar Registro'}
+              </button>
             </div>
           </form>
 
@@ -309,9 +362,18 @@ export default function Home({ user }) {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        borderLeft: `3px solid ${ev.type === 'extra' ? 'var(--success)' : ev.type === 'use' ? 'var(--danger)' : 'var(--primary)'}`
+                        borderLeft: `3px solid ${ev.type === 'extra' ? 'var(--success)' :
+                            ev.type === 'use' ? 'var(--danger)' :
+                              ev.type === 'familiar' ? 'var(--primary)' :
+                                ev.type === 'memo' ? '#f59e0b' : '#8b5cf6'
+                          }`
                       }}>
-                        <span>{ev.type === 'extra' ? `+${ev.hours}h` : ev.type === 'use' ? `-${ev.hours}h` : 'Fam.'}</span>
+                        <span>
+                          {ev.type === 'extra' ? `+${ev.hours}h` :
+                            ev.type === 'use' ? `-${ev.hours}h` :
+                              ev.type === 'familiar' ? 'Fam.' :
+                                ev.type === 'memo' ? 'Memo' : 'Camb.'}
+                        </span>
                         {ev.requiresMemo && (
                           <span
                             style={{ cursor: 'pointer', fontSize: '10px' }}
@@ -352,8 +414,11 @@ export default function Home({ user }) {
                         <td style={{ padding: '0.75rem' }}>{ev.date}</td>
                         <td style={{ padding: '0.75rem' }}>
                           <span className={`status-badge ${ev.type === 'extra' ? 'success' : ev.type === 'use' ? 'warning' : 'primary'}`}
-                            style={{ background: ev.type === 'extra' ? '#dcfce7' : ev.type === 'use' ? '#fee2e2' : '#dbeafe', color: ev.type === 'extra' ? '#166534' : ev.type === 'use' ? '#991b1b' : '#1e40af' }}>
-                            {ev.type === 'extra' ? 'Extra' : ev.type === 'use' ? 'Uso' : 'Familiar'}
+                            style={{
+                              background: ev.type === 'extra' ? '#dcfce7' : ev.type === 'use' ? '#fee2e2' : ev.type === 'familiar' ? '#dbeafe' : ev.type === 'memo' ? '#fef3c7' : '#ede9fe',
+                              color: ev.type === 'extra' ? '#166534' : ev.type === 'use' ? '#991b1b' : ev.type === 'familiar' ? '#1e40af' : ev.type === 'memo' ? '#92400e' : '#5b21b6'
+                            }}>
+                            {ev.type === 'extra' ? 'Extra' : ev.type === 'use' ? 'Uso' : ev.type === 'familiar' ? 'Familiar' : ev.type === 'memo' ? 'Memo' : 'Cambio'}
                           </span>
                         </td>
                         <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '500' }}>{ev.hours}</td>
@@ -369,7 +434,10 @@ export default function Home({ user }) {
                             </button>
                           )}
                         </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                          <button onClick={() => startEdit(ev)} style={{ color: 'var(--primary)', background: 'none', border: 'none', padding: 0 }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                          </button>
                           <button onClick={() => removeEntry(ev.id)} style={{ color: 'var(--danger)', background: 'none', border: 'none', padding: 0 }}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                           </button>
@@ -380,9 +448,9 @@ export default function Home({ user }) {
               </table>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+        </main >
+      </div >
+    </div >
   )
 }
 
