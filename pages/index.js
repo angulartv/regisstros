@@ -225,12 +225,25 @@ export default function Home({ user }) {
     return { totalExtra, totalUsed, net: totalExtra - totalUsed, diasFamiliares, pendingMemos }
   }, [entries])
 
-  // Simple month calendar mapping
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = today.getMonth()
+  // Calendar Logic
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+
+  const year = currentMonth.getFullYear()
+  const month = currentMonth.getMonth()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDayOfMonth = new Date(year, month, 1).getDay() // 0 = Sunday
+
+  // Create array of empty slots for offset + actual days
+  const emptySlots = Array.from({ length: firstDayOfMonth }, (_, i) => null)
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+
+  function prevMonth() {
+    setCurrentMonth(new Date(year, month - 1, 1))
+  }
+
+  function nextMonth() {
+    setCurrentMonth(new Date(year, month + 1, 1))
+  }
 
   function entriesForDay(day) {
     const dstr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -348,10 +361,29 @@ export default function Home({ user }) {
           </form>
 
           <div className="calendar card" style={{ marginBottom: '2rem' }}>
-            <div style={{ padding: '0 0 1rem 0', borderBottom: '1px solid var(--border)', marginBottom: '1rem' }}>
-              <h2>{today.toLocaleString('es-ES', { month: 'long' })} <span style={{ color: 'var(--text-secondary)' }}>{year}</span></h2>
+            <div style={{ padding: '0 0 1rem 0', borderBottom: '1px solid var(--border)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button onClick={prevMonth} style={{ background: 'none', border: 'none', fontSize: '1.2rem' }}>◀</button>
+              <h2 style={{ textTransform: 'capitalize' }}>
+                {currentMonth.toLocaleString('es-ES', { month: 'long' })} <span style={{ color: 'var(--text-secondary)' }}>{year}</span>
+              </h2>
+              <button onClick={nextMonth} style={{ background: 'none', border: 'none', fontSize: '1.2rem' }}>▶</button>
             </div>
+
+            {/* Weekday Headers */}
+            <div className="calendar-grid" style={{ marginBottom: '1px', background: 'transparent', border: 'none', height: 'auto' }}>
+              {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+                <div key={d} style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--text-secondary)', padding: '0.5rem', fontSize: '0.9rem' }}>
+                  {d}
+                </div>
+              ))}
+            </div>
+
             <div className="calendar-grid">
+              {/* Empty slots for previous month days */}
+              {emptySlots.map((_, i) => (
+                <div key={`empty-${i}`} className="day" style={{ background: '#f8fafc' }} />
+              ))}
+
               {days.map((d) => {
                 const dayEntries = entriesForDay(d)
                 return (
