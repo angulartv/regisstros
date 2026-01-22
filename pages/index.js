@@ -307,7 +307,7 @@ export default function Home({ user }) {
                   <option value="use">Usar horas (-)</option>
                   <option value="familiar">Día familiar</option>
                   <option value="memo">Memo Informativo</option>
-                  <option value="change">Cambio de Turno</option>
+                  <option value="change">Cambio de Horario</option>
                 </select>
               </label>
               {['extra', 'use', 'familiar'].includes(form.type) && (
@@ -363,9 +363,9 @@ export default function Home({ user }) {
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         borderLeft: `3px solid ${ev.type === 'extra' ? 'var(--success)' :
-                            ev.type === 'use' ? 'var(--danger)' :
-                              ev.type === 'familiar' ? 'var(--primary)' :
-                                ev.type === 'memo' ? '#f59e0b' : '#8b5cf6'
+                          ev.type === 'use' ? 'var(--danger)' :
+                            ev.type === 'familiar' ? 'var(--primary)' :
+                              ev.type === 'memo' ? '#f59e0b' : '#8b5cf6'
                           }`
                       }}>
                         <span>
